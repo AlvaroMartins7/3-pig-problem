@@ -33,5 +33,5 @@ pip install -r requirements.txt
 ### 5. Rodar a extração:
 
 ```
-python3 enhance_templates.py
+python3 extract_templates.py
 ```
