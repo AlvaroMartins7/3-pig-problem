@@ -20,7 +20,7 @@ def write_annotation(annot_folder, img_filename, data_array):
 
 # Process a template, returning success or failure
 def process_template(background, template_folder, annot_folder, img_filename, rescale_factor, 
-					 debug, rotation_angle, norm_factor):
+					 debug, rotation_angle, h_flip, v_flip, norm_factor):
 	    
 	template = st.get_random_image(template_folder).convert('RGBA')
 
@@ -29,6 +29,7 @@ def process_template(background, template_folder, annot_folder, img_filename, re
 	template = st.filter_template(template)
 	template = st.rescale_img(template, rescale_factor)
 	template = st.normalize_img(template, norm_factor)
+	template = st.flip_img(template, h_flip, v_flip)
 	template = st.rotate_img(template, rotation_angle)
 
 	position = st.get_random_position(background, template)
@@ -54,8 +55,8 @@ def process_template(background, template_folder, annot_folder, img_filename, re
 
 # Merges a template to a background
 def merge_images(background_folder, template_folder, annot_folder, img_filename, img_res, debug,
-				 noise_bg, rescale_factor, rotation_angle, templ_number, gamma_factor, contrast_factor,
-				 sharpness_factor, color_factor, norm_factor):
+				 noise_bg, rescale_factor, rotation_angle, h_flip, v_flip, templ_number, gamma_factor,
+				 contrast_factor, sharpness_factor, color_factor, norm_factor):
 	
 	if random.random() < noise_bg:
 		background = st.noise_background(img_res).convert('RGBA')
@@ -66,7 +67,7 @@ def merge_images(background_folder, template_folder, annot_folder, img_filename,
 	num_templates = random.randint(1, templ_number)
 	for _ in range(num_templates):
 		success = process_template(background, template_folder, annot_folder, img_filename, rescale_factor, 
-							 	   debug, rotation_angle, norm_factor)
+							 	   debug, rotation_angle, h_flip, v_flip, norm_factor)
 		if not success:
 			continue
 	
@@ -80,13 +81,13 @@ def merge_images(background_folder, template_folder, annot_folder, img_filename,
 
 # Generates a image and saves it
 def generate_image(index, bgns_path, tpls_path, image_path, annotation_path, img_res,
-				   debug, noise_bg, rescale_factor, rotation_angle, templ_number, gamma_factor,
-				   contrast_factor, sharpness_factor, color_factor, norm_factor):
+				   debug, noise_bg, rescale_factor, rotation_angle, h_flip, v_flip, templ_number,
+				   gamma_factor, contrast_factor, sharpness_factor, color_factor, norm_factor):
 	
     img_filename = f"image_{index:03d}"
     synth_img = merge_images(bgns_path, tpls_path, annotation_path, img_filename, img_res, debug,
-							 noise_bg, rescale_factor, rotation_angle, templ_number, gamma_factor,
-							 contrast_factor, sharpness_factor, color_factor, norm_factor)
+							 noise_bg, rescale_factor, rotation_angle, h_flip, v_flip, templ_number, 
+							 gamma_factor, contrast_factor, sharpness_factor, color_factor, norm_factor)
     output_path = os.path.join(image_path, f"{img_filename}.png")
     synth_img.save(output_path, format='PNG')
     print(f"{img_filename} and labels were generated successfully.")
@@ -108,9 +109,9 @@ def create_folder(out_path):
 
 # generates dataset using multiprocessing
 def generate_dataset(bgns_path, tpls_path, out_path, num_imgs, max_process, img_res,
-				  	 debug, noise_bg, rescale_factor, rotation_angle, templ_number,
-					 gamma_factor, contrast_factor, sharpness_factor, color_factor,
-					 norm_factor):
+				  	 debug, noise_bg, rescale_factor, rotation_angle, h_flip, v_flip, 
+					 templ_number, gamma_factor, contrast_factor, sharpness_factor, 
+					 color_factor, norm_factor):
 	
     image_path, annotation_path = create_folder(out_path)
 
@@ -118,8 +119,9 @@ def generate_dataset(bgns_path, tpls_path, out_path, num_imgs, max_process, img_
         executor.map(generate_image, range(num_imgs), [bgns_path]*num_imgs, [tpls_path]*num_imgs, 
                      [image_path]*num_imgs, [annotation_path]*num_imgs, [img_res]*num_imgs,
 					 [debug]*num_imgs, [noise_bg]*num_imgs, [rescale_factor]*num_imgs, [rotation_angle]*num_imgs,
-					 [templ_number]*num_imgs, [gamma_factor]*num_imgs, [contrast_factor]*num_imgs,
-					 [sharpness_factor]*num_imgs, [color_factor]*num_imgs, [norm_factor]*num_imgs)
+					 [h_flip]*num_imgs, [v_flip]*num_imgs, [templ_number]*num_imgs, [gamma_factor]*num_imgs,
+					 [contrast_factor]*num_imgs, [sharpness_factor]*num_imgs, [color_factor]*num_imgs,
+					 [norm_factor]*num_imgs)
 
 
 # loads configuration from 
@@ -164,6 +166,8 @@ if __name__ == "__main__":
 	orig_tpl_res = tuple(config['orig_tpl_res'])
 	rescale_factor = config['rescale_factor']
 	rotation_angle = config['rotation_angle']
+	h_flip = config['h_flip']
+	v_flip = config['v_flip']
 	templ_number = config['templ_number']
 	gamma_factor = config['gamma_factor']
 	contrast_factor = config['contrast_factor']
@@ -173,6 +177,6 @@ if __name__ == "__main__":
 	norm_factor = st.normalization_factor(orig_tpl_res, img_res)
 	
 	generate_dataset(bgns_path, tpls_path, out_path, num_imgs, max_process, img_res,
-				  	 debug, noise_bg, rescale_factor, rotation_angle, templ_number, 
-					 gamma_factor, contrast_factor, sharpness_factor, color_factor,
-					 norm_factor)
+				  	 debug, noise_bg, rescale_factor, rotation_angle, h_flip, v_flip,
+					 templ_number, gamma_factor, contrast_factor, sharpness_factor, 
+					 color_factor, norm_factor)

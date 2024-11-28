@@ -2,7 +2,7 @@ import os
 import random
 import cv2
 import numpy as np
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageOps
 from imgaug import augmenters as iaa
 
 # Return in YOLO format annotation
@@ -104,6 +104,15 @@ def rotate_img(template, rotation_angle):
     new_template = crop_transparent_borders(new_template)
 
     return new_template
+
+
+# Function to randomly flip the image horizontally or vertically
+def flip_img(template, h_flip, v_flip):
+    if random.random() < h_flip:
+        template = ImageOps.mirror(template)  # Horizontal flip
+    if random.random() < v_flip:
+        template = ImageOps.flip(template)  # Vertical flip
+    return template
 
 
 # Function to rescale a image using a scaling factor range
