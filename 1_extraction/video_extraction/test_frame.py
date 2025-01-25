@@ -61,12 +61,6 @@ else:
     # Exiba a imagem com Pillow
     pil_image.show()
 
-    # Salve a imagem anotada (descomente se necessário)
-    '''
-    output_filename = os.path.join(output_dir, f'annotated_frame_{frame_to_process:04d}.jpg')
-    cv2.imwrite(output_filename, image)
-    print(f"Frame {frame_to_process} processado e salvo em '{output_dir}'.")
-    '''
 
 if not frame_found:
     print(f"O frame {frame_to_process} não foi encontrado nas anotações.")

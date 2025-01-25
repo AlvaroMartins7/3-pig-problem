@@ -1,0 +1,5 @@
+train: "/home/alvaro/Desktop/Mestrado/3-pig-problem/5_evaluation/dataset/val_bg/images"
+val: "/home/alvaro/Desktop/Mestrado/3-pig-problem/5_evaluation/dataset/val_noise/images"
+test: "/home/alvaro/Desktop/Mestrado/3-pig-problem/5_evaluation/dataset/test/images"
+nc: 1
+names: ["0"]
