@@ -1,28 +1,32 @@
+"""Real-time video inference test for a trained YOLO pig detection model.
+
+Runs object detection on a video file frame-by-frame in streaming mode
+and displays the results in a resizable OpenCV window. Press 'q' to quit.
+"""
+
 from ultralytics import YOLO
 import cv2
 
-# Carregar o modelo treinado
+# Load the trained model weights
 #model = YOLO("experimentos/no_noise/detect/train/weights/best.pt")
 model = YOLO("experimentos/noise/detect/train/weights/best.pt")
 
-
-# Processar o vídeo em modo streaming
+# Run inference on the video in streaming mode (processes one frame at a time)
 results = model("12-Ceiling_Cam.mp4", stream=True)
 
-# Definir a escala para redimensionar o vídeo (ex.: 50% do tamanho original)
-resize_scale = 0.5  # Altere este valor conforme necessário
+# Display scale for the output window
+resize_scale = 0.5
 
-# Processar cada quadro
+# Process and display each frame with detection overlays
 for result in results:
-    frame = result.plot()  # Adiciona as detecções no quadro
+    frame = result.plot()  # Draw detection boxes and labels on the frame
 
-    # Redimensionar o quadro
+    # Resize frame to a fixed display resolution
     frame_resized = cv2.resize(frame, (1280, 720))
 
-    # Exibir o quadro redimensionado
     cv2.imshow("Detections", frame_resized)
 
-    # Pressione 'q' para sair
+    # Press 'q' to exit the video playback
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 

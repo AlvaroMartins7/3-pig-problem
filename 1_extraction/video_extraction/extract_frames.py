@@ -5,8 +5,13 @@ import cv2
 import datetime as dt
 
 
-# extracts each frame from the video
 def extract_frames(out_path, video_path):
+	"""Extract every frame from a video file and save them as individual JPEG images.
+
+	Args:
+		out_path: Directory where extracted frame images will be saved.
+		video_path: Full path to the source video file.
+	"""
 	cap = cv2.VideoCapture(video_path)
 	frame_count = 0
 
@@ -20,12 +25,14 @@ def extract_frames(out_path, video_path):
 		frame_count += 1
 
 	cap.release()
-	print(f"Extração completa! {frame_count} frames foram salvos em '{out_path}'")
+	print(f"Extraction complete! {frame_count} frames saved to '{out_path}'")
 	
 
-# Creates folders to images and annotations
 def create_folder(out_path):
+	"""Create a timestamped output directory structure for extracted frames.
 
+	Returns the path to the 'frames' subdirectory.
+	"""
 	actual_dt = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 	out_path = os.path.join(out_path, actual_dt)
 	frame_path = os.path.join(out_path, 'frames')
@@ -35,23 +42,23 @@ def create_folder(out_path):
 	return frame_path
 
 
-# loads configuration from
 def load_config_from_yaml(file_path):
+	"""Load and return configuration parameters from a YAML file."""
 
-    with open(file_path, 'r') as file:
+	with open(file_path, 'r') as file:
 
-        return yaml.safe_load(file)
+		return yaml.safe_load(file)
 
 
-# Parses Arguments
 def parse_args():
+	"""Parse command-line arguments for frame extraction."""
 
-	parser = argparse.ArgumentParser(description='Generate a dataset with templates.')
+	parser = argparse.ArgumentParser(description='Extract frames from a video file.')
 
 	parser.add_argument("--config", dest='config_path', type=str, required=True,
 					 	help="Path to YAML configuration file.")
 	parser.add_argument("--video", dest='video_name', type=str, required=True,
-					 	help="Video name.")
+					 	help="Video filename (must exist inside the configured video_path).")
 
 	args = parser.parse_args()
 	return args

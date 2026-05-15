@@ -1,37 +1,125 @@
-1. Create a local virtual environment:
+# Synthetic Image Generation
 
-```shell
+## Overview
+
+Generates synthetic training images for YOLO object detection by compositing object templates onto background images (or random noise). Produces both the composite images and corresponding YOLO-format annotation files. Supports configurable augmentations and parallel processing.
+
+## How It Works
+
+1. Selects a background: either a random image from a backgrounds folder or a generated noise image.
+2. Randomly selects 1 to N templates, and for each:
+   - Applies a filtering pipeline (Gaussian blur + multi-layer edge blending) for realistic compositing.
+   - Normalizes the template to match the target resolution.
+   - Applies random rescaling, horizontal/vertical flipping, and rotation.
+   - Places the template at a random non-overlapping position on the background.
+   - Records the bounding box in YOLO annotation format.
+3. Applies global image augmentations: brightness, contrast, sharpness, and color jitter.
+4. Saves the final composite image and its annotation file.
+
+## Scripts
+
+| Script | Description |
+|---|---|
+| `generate_img.py` | Main entry point. Parses arguments, loads config, and orchestrates parallel image generation. |
+| `synth_tools.py` | Utility library with all image manipulation, augmentation, annotation, and compositing functions. |
+
+## Configuration
+
+All generation parameters are configured via `config.yaml`:
+
+| Parameter | Description |
+|---|---|
+| `bgns_path` | Path to background images directory |
+| `tpls_path` | Path to template images directory (RGBA PNGs from Step 2) |
+| `out_path` | Base output directory |
+| `noise_bg` | Probability of using a noise background instead of a real image (0.0–1.0) |
+| `img_res` | Output image resolution as `[width, height]` |
+| `orig_tpl_res` | Resolution of the original images the templates were cropped from |
+| `rescale_factor` | Random rescale range (e.g., 0.05 means ±5%) |
+| `rotation_angle` | Maximum random rotation angle in degrees |
+| `h_flip` | Probability of horizontal flip (0.0–1.0) |
+| `v_flip` | Probability of vertical flip (0.0–1.0) |
+| `templ_number` | Maximum number of templates to place per image |
+| `gamma_factor` | Random brightness adjustment range |
+| `contrast_factor` | Random contrast adjustment range |
+| `sharpness_factor` | Random sharpness adjustment range |
+| `color_factor` | Random color saturation adjustment range |
+
+### Expected directory structure
+
+```
+synth_img/
+├── data/
+│   ├── backgrounds/         # Background images (any format)
+│   └── templates/           # RGBA template PNGs (from Step 2)
+├── output/                  # Created automatically with timestamped subdirectories
+│   └── YYYY-MM-DD_HH-MM-SS/
+│       ├── images/          # Generated composite images
+│       └── labels/          # YOLO-format annotation .txt files
+├── config.yaml
+├── generate_img.py
+├── synth_tools.py
+├── requirements.txt
+└── README.MD
+```
+
+## Prerequisites
+
+- Python 3.8+
+- pip
+
+## Setup & Usage
+
+### 1. Create a virtual environment
+
+```bash
 python -m venv .venv
 ```
 
-2. Activate the virtual environment:
+### 2. Activate the virtual environment
 
-```shell
+**Linux/macOS:**
+```bash
 source .venv/bin/activate
 ```
 
-3. Install the required dependencies:
-
-```shell
-pip install -r requirements.txt
+**Windows:**
+```powershell
+.\.venv\Scripts\activate
 ```
 
-An additional step is to install the `SegmentAnything (SAM)` tool from Meta.You can install it by running the following command:
+### 3. Install dependencies
 
-```shell
-pip install git+https://github.com/facebookresearch/segment-anything.git
+```bash
+pip install pillow opencv-python numpy pyyaml imgaug
 ```
 
-After running the command, create a directory `data/checkpoints` in the root of the project. Then, download the pre-trained model from this [link](https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth) and save it in the `data/checkpoints` directory.
+> **Note:** The provided `requirements.txt` contains a full system-level `pip freeze`. The actual dependencies are `Pillow`, `opencv-python`, `numpy`, `PyYAML`, and `imgaug`.
 
-## Dataset
+### 4. Prepare the data
 
-The dataset used in this project provided by the [AIFARMS](https://github.com/AIFARMS/multi-camera-pig-tracking) and can be directly acessed via this [link](https://drive.google.com/drive/folders/1E2wW2aRENgy_TqlzfICn58ahbTHVIaK6). Download the directories `ISRL images` and `multicam-dataset` and place them into the created `data` directory.
+- Place background images in `data/backgrounds/`.
+- Place enhanced RGBA template PNGs (from Step 2) in `data/templates/`.
 
-## Templates extraction
+### 5. Generate the dataset
 
-Once you downloaded the dataset, you can extract the templates from the images using the `extract_templates.py` script. This script will extract the templates from the images and save them in the `data/templates` directory. To run the script, use the following command:
-
-```shell
-python -m tools.extract_template
+**Basic usage:**
+```bash
+python generate_img.py --config config.yaml --num-imgs 100 --max-process 4
 ```
+
+**With debug mode** (draws bounding boxes on images for visual verification):
+```bash
+python generate_img.py --config config.yaml --num-imgs 10 --max-process 1 --debug
+```
+
+### Command-line arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `--config` | Yes | Path to the YAML configuration file |
+| `--num-imgs` | Yes | Number of synthetic images to generate |
+| `--max-process` | No (default: 1) | Number of parallel worker processes |
+| `--debug` | No | Enable debug mode to draw bounding boxes on images |
+
+Output images and labels are saved in a timestamped directory under `output/`.

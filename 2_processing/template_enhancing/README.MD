@@ -1,37 +1,102 @@
-# MELHORIA DE TEMPLATES
+# Template Enhancement with SAM2
 
-## Objetivo
+## Overview
 
-Extrair templates de datasets de imagem via suas anotações, lidando com o problema de sobreposição de objetos
+Refines rough-cropped object templates by applying [SAM2 (Segment Anything Model 2)](https://github.com/facebookresearch/sam2) segmentation. This step produces clean RGBA templates with transparent backgrounds, ready for compositing onto synthetic backgrounds in the generation step.
 
-## Dataset utilizado
+## How It Works
 
-O dataset utilizado foi produzido pela [AIFARMS](https://github.com/AIFARMS/multi-camera-pig-tracking) e pode ser acessado por este [link](https://drive.google.com/drive/folders/1E2wW2aRENgy_TqlzfICn58ahbTHVIaK6). Baixe o diretório `ISRL images` e coloque um diretório com imagens e anotações (exemplo: "12-00") e o coloque na pasta "data"
+1. Loads each rough-cropped template image from the `data/` folder.
+2. Uses the center of the image as a point prompt for SAM2.
+3. SAM2 generates multiple segmentation masks; the highest-confidence mask is selected.
+4. The mask is applied as an alpha channel, making the background transparent.
+5. The image is cropped to the object bounding box and saved as a PNG with transparency.
 
-## Passos para usar a extração de templates:
+## Scripts
 
-### 1. Criar um ambiente virtual python:
+| Script | Description |
+|---|---|
+| `enhance_templates.py` | Main script that loads templates, runs SAM2 segmentation, and saves enhanced RGBA templates. |
+| `enhancing_tools.py` | Utility functions for applying segmentation masks and cropping to non-transparent content. |
+
+### Expected directory structure
 
 ```
-python3 -m venv .venv
+template_enhancing/
+├── data/                    # Input: rough-cropped templates from Step 1
+│   ├── template_001.jpg
+│   ├── template_002.jpg
+│   └── ...
+├── output/                  # Output: clean RGBA templates (PNG)
+├── checkpoints/
+│   └── sam2.1_hiera_large.pt   # SAM2 model checkpoint
+├── enhance_templates.py
+├── enhancing_tools.py
+├── requirements.txt
+└── README.MD
 ```
 
-### 2. Ativar o ambiente criado:
+## Prerequisites
 
+- Python 3.8+
+- pip
+- (Optional) NVIDIA GPU with CUDA for faster inference
+
+## Setup & Usage
+
+### 1. Create a virtual environment
+
+```bash
+python -m venv .venv
 ```
+
+### 2. Activate the virtual environment
+
+**Linux/macOS:**
+```bash
 source .venv/bin/activate
 ```
 
-### 3. Instalar as dependências:
-
+**Windows:**
+```powershell
+.\.venv\Scripts\activate
 ```
-pip install -r requirements.txt
+
+### 3. Install dependencies
+
+```bash
+pip install torch torchvision pillow numpy
 ```
 
-### 4. Se certificar de que o apontamento para o diretório de dataset está pronto
+### 4. Install SAM2
 
-### 5. Rodar a extração:
+```bash
+pip install git+https://github.com/facebookresearch/sam2.git
+```
 
+### 5. Download the SAM2 model checkpoint
+
+Download the `sam2.1_hiera_large.pt` checkpoint from the [SAM2 repository](https://github.com/facebookresearch/sam2#model-checkpoints) and place it in a `checkpoints/` directory:
+
+```bash
+mkdir checkpoints
+# Download sam2.1_hiera_large.pt into checkpoints/
 ```
-python3 enhance_templates.py
+
+### 6. Prepare the input data
+
+Place the rough-cropped template images (output from Step 1) into the `data/` directory. Create the `output/` directory:
+
+```bash
+mkdir data output
 ```
+
+### 7. Run the enhancement
+
+```bash
+python enhance_templates.py
+```
+
+> **Tip:** To use GPU acceleration, change `torch.device("cpu")` to `torch.device("cuda")` in `enhance_templates.py`.
+
+Enhanced templates (PNG with transparency) will be saved to `output/`.

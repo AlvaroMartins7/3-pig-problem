@@ -1,9 +1,18 @@
+"""Utility functions for SAM2-based template enhancement.
+
+Provides mask application and content-aware cropping to produce clean RGBA
+templates with transparent backgrounds from SAM2 segmentation masks.
+"""
+
 from PIL import Image
 import numpy as np
 
+
 def apply_mask_and_remove(mask, image):
-    """
-    Apply the mask to the image and remove the masked section by making it black.
+    """Apply a binary segmentation mask to an image as an alpha channel.
+
+    Pixels inside the mask (value=1) remain opaque; pixels outside the mask
+    become fully transparent. Returns an RGBA numpy array.
     """
     # Convert image to RGBA (to add transparency)
     image = Image.fromarray(image).convert("RGBA")
@@ -12,17 +21,19 @@ def apply_mask_and_remove(mask, image):
     # Ensure the mask is a binary mask (0s and 1s)
     mask = mask.astype(np.uint8)
     
-    # Create an alpha channel: 255 for the masked area, 0 for non-masked areas (transparent)
+    # Create an alpha channel: 255 (opaque) for masked area, 0 (transparent) for background
     alpha_channel = np.where(mask == 1, 255, 0).astype(np.uint8)
-    # Apply the alpha channel to the image (set non-masked areas to transparent)
     image[:, :, 3] = alpha_channel
     return image
 
+
 def crop_to_content(image):
+    """Crop an RGBA image to its non-transparent bounding box.
+
+    Finds the tightest axis-aligned bounding box around all non-transparent
+    pixels and returns the cropped region. If the image is fully transparent,
+    returns it unchanged.
     """
-    Crop the image to the non-transparent parts.
-    """
-    # Find where the alpha channel is non-zero (i.e., non-transparent areas)
     alpha_channel = image[:, :, 3]
     non_transparent_pixels = np.where(alpha_channel > 0)
 

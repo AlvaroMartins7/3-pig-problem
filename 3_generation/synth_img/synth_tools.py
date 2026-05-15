@@ -1,3 +1,9 @@
+"""Image manipulation utilities for synthetic dataset generation.
+
+Provides functions for template augmentation (scaling, rotation, flipping, filtering),
+background generation, YOLO annotation formatting, and image-level color transforms.
+"""
+
 import os
 import random
 import cv2
@@ -5,8 +11,13 @@ import numpy as np
 from PIL import Image, ImageEnhance, ImageOps
 from imgaug import augmenters as iaa
 
-# Return in YOLO format annotation
+
 def set_yolo_annot_params(x1, y1, x2, y2, img_width, img_height, class_id):
+    """Convert corner-format bounding box to normalized YOLO annotation format.
+
+    Takes (x1, y1, x2, y2) corner coordinates and normalizes them to
+    [class_id, x_center, y_center, width, height] with values in [0, 1].
+    """
 
     x_center = (x1 + x2) / 2.0
     y_center = (y1 + y2) / 2.0
@@ -22,8 +33,8 @@ def set_yolo_annot_params(x1, y1, x2, y2, img_width, img_height, class_id):
     return [class_id, x_center_norm, y_center_norm, width_norm, height_norm]
 
 
-# Function to calculate the bounding box coordinates of a template
 def calculate_bounding_box(position, template):
+    """Calculate corner-format bounding box (x1, y1, x2, y2) from a paste position and template size."""
 
     return (
         position[0],  # top-left x
@@ -33,13 +44,16 @@ def calculate_bounding_box(position, template):
     )
 
 
-# Function to overlay the template onto the background at the given position
 def overlay_template(background, template, position):
+    """Paste an RGBA template onto the background at the given (x, y) position, respecting transparency."""
     background.paste(template, position, template)
 
 
-# Function to calculate a random position within the background for the template
 def get_random_position(background, template):
+    """Calculate a random valid position to place the template within the background bounds.
+
+    Returns (x, y) tuple or None if the template is larger than the background.
+    """
 
     max_x = background.width - template.width
     max_y = background.height - template.height
@@ -49,26 +63,24 @@ def get_random_position(background, template):
     return (random.randint(0, max_x), random.randint(0, max_y))
 
 
-# Increases or decreases the contrast of a given image using a factor
 def color_transform(img, color_factor):
-
+	"""Randomly adjust color saturation by a factor in the range [1 - factor, 1 + factor]."""
 	enhancer = ImageEnhance.Color(img)
 	img = enhancer.enhance(random.uniform((1.0 - color_factor), (1.0 + color_factor)))
 	
 	return img
 
 
-# Increases or decreases the contrast of a given image using a factor
 def sharpness_transform(img, sharpness_factor):
-
+	"""Randomly adjust sharpness by a factor in the range [1 - factor, 1 + factor]."""
 	enhancer = ImageEnhance.Sharpness(img)
 	img = enhancer.enhance(random.uniform((1.0 - sharpness_factor), (1.0 + sharpness_factor)))
 	
 	return img
 
 
-# Increases or decreases the contrast of a given image using a factor
 def contrast_transform(img, contrast_factor):
+	"""Randomly adjust contrast by a factor in the range [1 - factor, 1 + factor]."""
 
 	enhancer = ImageEnhance.Contrast(img)
 	img = enhancer.enhance(random.uniform((1.0 - contrast_factor), (1.0 + contrast_factor)))
@@ -76,8 +88,8 @@ def contrast_transform(img, contrast_factor):
 	return img
 
 
-# Increases or decreases the brightness of a given image using a factor
 def gamma_transform(img, gamma_factor):
+	"""Randomly adjust brightness by a factor in the range [1 - factor, 1 + factor]."""
 
 	enhancer = ImageEnhance.Brightness(img)
 	img = enhancer.enhance(random.uniform((1.0 - gamma_factor), (1.0 + gamma_factor)))
@@ -85,19 +97,19 @@ def gamma_transform(img, gamma_factor):
 	return img
 
 
-#Crop the image to the non-transparent parts.
 def crop_transparent_borders(image):
+	"""Crop an RGBA image to its non-transparent bounding box."""
 
-    image = image.convert("RGBA")
-    bbox = image.getbbox()
-    if bbox:
-        cropped_image = image.crop(bbox)
-        return cropped_image
+	image = image.convert("RGBA")
+	bbox = image.getbbox()
+	if bbox:
+		cropped_image = image.crop(bbox)
+		return cropped_image
 	
-    return image
+	return image
 
-# Function to rotate the template using a angle range
 def rotate_img(template, rotation_angle):
+    """Rotate the template by a random angle in [0, rotation_angle] and crop transparent borders."""
 
     angle = random.uniform(0, rotation_angle)
     new_template = template.rotate(angle, expand=True)
@@ -106,8 +118,8 @@ def rotate_img(template, rotation_angle):
     return new_template
 
 
-# Function to randomly flip the image horizontally or vertically
 def flip_img(template, h_flip, v_flip):
+    """Randomly flip the image horizontally (probability h_flip) and/or vertically (probability v_flip)."""
     if random.random() < h_flip:
         template = ImageOps.mirror(template)  # Horizontal flip
     if random.random() < v_flip:
@@ -115,8 +127,8 @@ def flip_img(template, h_flip, v_flip):
     return template
 
 
-# Function to rescale a image using a scaling factor range
 def rescale_img(img, rescale_factor):
+	"""Randomly rescale the image by a factor in [1 - rescale_factor, 1 + rescale_factor]."""
 
 	rescale_factor = random.uniform((1.0 - rescale_factor), (1.0 + rescale_factor))
 
@@ -130,8 +142,8 @@ def rescale_img(img, rescale_factor):
 	return img
 
 
-# Function to rescale a image using the background scaling factor
 def normalize_img(img, norm_factor):
+	"""Resize the template using a pre-computed normalization factor to match the target background resolution."""
 
 	img_width, img_height = img.size
 
@@ -143,8 +155,8 @@ def normalize_img(img, norm_factor):
 	return img
 
 
-# returns the scaling factor to normalize the templates for different background resolutions
 def normalization_factor(old_res, new_res):
+	"""Compute the scaling factor to normalize templates from old_res to new_res, preserving aspect ratio."""
 
 	old_width, old_height = old_res
 	new_width, new_height = new_res
@@ -155,8 +167,12 @@ def normalization_factor(old_res, new_res):
 	return min(scale_width, scale_height)
 
 
-# Applies a 4-step filter to a given image to help it blend to a background
 def blending(image):
+	"""Apply a multi-layer edge-blending filter to soften template borders.
+
+    Creates 4 transparency layers (100%, 75%, 50%, 25%) with progressively
+    eroded masks and composites them to produce a smooth transition at edges.
+    """
 
 	transparencies = [1.0, 0.75, 0.5, 0.25]
 	images_with_transparency = []
@@ -195,8 +211,8 @@ def blending(image):
 	return final_image
 
 
-# Blurs a given image using gaussian distribution rule
 def gaussian_blur(template):
+	"""Apply a light Gaussian blur (sigma=0.6667) to reduce aliasing artifacts."""
 
 	g_blur = iaa.GaussianBlur(sigma=0.6667)
 	np_template = np.array(template)
@@ -206,8 +222,8 @@ def gaussian_blur(template):
 	return aug_template
 
 
-# Applies Gaussian Blur, then a Blending filter
 def filter_template(template):
+	"""Apply the full template filtering pipeline: Gaussian blur followed by edge blending."""
 	
 	template = gaussian_blur(template)
 	template = blending(template)
@@ -215,22 +231,22 @@ def filter_template(template):
 	return template
 
 
-# Function to randomly choose an image from a folder
 def get_random_image(folder):
+    """Load and return a random image from the given directory."""
 
     return Image.open(os.path.join(folder, random.choice(os.listdir(folder))))
 
 
-# Resizes a image to a predefined resolution
 def resize_img(img, img_resolution):
+	"""Resize an image to the exact specified (width, height) resolution."""
 	
 	width, height = img_resolution
 	img = img.resize((width, height), Image.Resampling.LANCZOS)
 	
 	return img
 
-# Generates a noise background with the given resolution
 def noise_background(img_resolution):
+	"""Generate a random RGB noise image with the given (width, height) resolution."""
    
 	width, height = img_resolution
     

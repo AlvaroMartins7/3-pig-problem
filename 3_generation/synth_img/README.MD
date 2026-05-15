@@ -1,23 +1,15 @@
-## Exemplo de execução SEM debug
+# Synthetic Image Generator — Quick Reference
 
-```
-python3 generate_img.py --backgrounds-path ./data/backgrounds/ --templates-path ./data/templates/ --out-path ./output/ --num-imgs 5 --max-process 6
-```
+## Usage
 
-## Exemplo de execução COM debug
-
-```
-python3 generate_img.py --backgrounds-path ./data/backgrounds/ --templates-path ./data/templates/ --out-path ./output/ --num-imgs 5 --max-process 6 --debug
+**Generate images (without debug):**
+```bash
+python generate_img.py --config config.yaml --num-imgs 100 --max-process 6
 ```
 
-## Exemplo de execução SEM debug
+**Generate images (with debug — draws bounding boxes):**
+```bash
+python generate_img.py --config config.yaml --num-imgs 10 --max-process 6 --debug
+```
 
-```
-python3 generate_img.py --config ./config.yaml --num-imgs 5 --max-process 6
-```
-
-## Exemplo de execução COM debug
-
-```
-python3 generate_img.py --config ./config.yaml --num-imgs 5 --max-process 6 --debug
-```
+See the [parent README](../README.MD) for full setup instructions and configuration details.

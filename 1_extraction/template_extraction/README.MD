@@ -1,37 +1,86 @@
-# EXTRAÇÃO DE TEMPLATES
+# Template Extraction from Image Annotations
 
-## Objetivo
+## Overview
 
-Extrair templates de datasets de imagem via suas anotações, lidando com o problema de sobreposição de objetos
+Extracts individual object templates (cropped images) from annotated image datasets. The script reads CSV annotations exported from [VGG Image Annotator (VIA)](https://www.robots.ox.ac.uk/~vgg/software/via/), detects overlapping bounding boxes, and only extracts non-overlapping regions to ensure clean, isolated templates.
 
-## Dataset utilizado
+## How It Works
 
-O dataset utilizado foi produzido pela [AIFARMS](https://github.com/AIFARMS/multi-camera-pig-tracking) e pode ser acessado por este [link](https://drive.google.com/drive/folders/1E2wW2aRENgy_TqlzfICn58ahbTHVIaK6). Baixe o diretório `ISRL images` e coloque um diretório com imagens e anotações (exemplo: "12-00") e o coloque na pasta "data"
+1. Parses the CSV annotation file containing bounding-box coordinates for each image.
+2. For each image, compares all annotated regions pairwise to detect overlaps.
+3. Discards any region involved in an overlap (to avoid templates with partial objects).
+4. Crops and saves each valid (non-overlapping) region as an individual JPEG file.
 
-## Passos para usar a extração de templates:
+## Dataset
 
-### 1. Criar um ambiente virtual python:
+The dataset used was produced by [AIFARMS](https://github.com/AIFARMS/multi-camera-pig-tracking) and can be accessed via this [Google Drive link](https://drive.google.com/drive/folders/1E2wW2aRENgy_TqlzfICn58ahbTHVIaK6).
+
+1. Download the `ISRL images` directory.
+2. Place a subdirectory containing images and annotations (e.g., `12-00/`) inside a `data/` folder in this directory.
+
+### Expected directory structure
 
 ```
-python3 -m venv .venv
+template_extraction/
+├── data/
+│   └── 12-00/
+│       ├── 12-00.csv          # VIA annotation export
+│       ├── image_001.jpg
+│       ├── image_002.jpg
+│       └── ...
+├── output/                    # Created automatically
+├── extract_templates.py
+├── requirements.txt
+└── README.MD
 ```
 
-### 2. Ativar o ambiente criado:
+## Prerequisites
 
+- Python 3.8+
+- pip
+
+## Setup & Usage
+
+### 1. Create a virtual environment
+
+```bash
+python -m venv .venv
 ```
+
+### 2. Activate the virtual environment
+
+**Linux/macOS:**
+```bash
 source .venv/bin/activate
 ```
 
-### 3. Instalar as dependências:
-
+**Windows:**
+```powershell
+.\.venv\Scripts\activate
 ```
-pip install -r requirements.txt
+
+### 3. Install dependencies
+
+```bash
+pip install pandas pillow
 ```
 
-### 4. Se certificar de que o apontamento para o diretório de dataset está pronto
+> **Note:** The provided `requirements.txt` contains a full system-level `pip freeze`. The only actual dependencies for this script are `pandas` and `Pillow`.
 
-### 5. Rodar a extração:
+### 4. Prepare the dataset
 
+Make sure the `data/12-00/` directory exists and contains the images and CSV annotation file. Adjust the path inside `extract_templates.py` if your data is in a different location.
+
+### 5. Create the output directory
+
+```bash
+mkdir output
 ```
-python3 extract_templates.py
+
+### 6. Run the extraction
+
+```bash
+python extract_templates.py
 ```
+
+Extracted templates will be saved to the `output/` directory.
