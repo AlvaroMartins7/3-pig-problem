@@ -1,9 +1,3 @@
-"""Image manipulation utilities for synthetic dataset generation.
-
-Provides functions for template augmentation (scaling, rotation, flipping, filtering),
-background generation, YOLO annotation formatting, and image-level color transforms.
-"""
-
 import os
 import random
 import cv2
@@ -11,13 +5,47 @@ import numpy as np
 from PIL import Image, ImageEnhance, ImageOps
 from imgaug import augmenters as iaa
 
+# Kernel global para erosão (reutilizado)
+_EROSION_KERNEL = np.ones((3, 3), np.uint8)
 
-def set_yolo_annot_params(x1, y1, x2, y2, img_width, img_height, class_id):
-    """Convert corner-format bounding box to normalized YOLO annotation format.
+# Cache para lista de arquivos em pastas para get_random_image
+_image_folder_cache = {}
 
-    Takes (x1, y1, x2, y2) corner coordinates and normalizes them to
-    [class_id, x_center, y_center, width, height] with values in [0, 1].
+
+def preload_templates(template_folder):
     """
+    Carrega todas as imagens da pasta template_folder em memória,
+    retornando uma lista de objetos PIL.Image.
+    """
+    templates = []
+    for filename in os.listdir(template_folder):
+        full_path = os.path.join(template_folder, filename)
+        if os.path.isfile(full_path):
+            try:
+                img = Image.open(full_path).convert('RGBA')
+                templates.append(img)
+            except Exception as e:
+                print(f"Erro ao abrir template {full_path}: {e}")
+    return templates
+
+# Return in COCO format annotation
+def set_coco_annot_params(x1, y1, x2, y2, image_id, category_id, annotation_id):
+    width = x2 - x1
+    height = y2 - y1
+    area = width * height
+    annotation = {
+        "id": annotation_id,
+        "image_id": image_id,
+        "category_id": category_id,
+        "bbox": [x1, y1, width, height],  # [top-left-x, top-left-y, width, height]
+        "area": area,
+        "iscrowd": 0
+    }
+    return annotation
+
+
+# Return in YOLO format annotation
+def set_yolo_annot_params(x1, y1, x2, y2, img_width, img_height, class_id):
 
     x_center = (x1 + x2) / 2.0
     y_center = (y1 + y2) / 2.0
@@ -33,8 +61,8 @@ def set_yolo_annot_params(x1, y1, x2, y2, img_width, img_height, class_id):
     return [class_id, x_center_norm, y_center_norm, width_norm, height_norm]
 
 
+# Function to calculate the bounding box coordinates of a template
 def calculate_bounding_box(position, template):
-    """Calculate corner-format bounding box (x1, y1, x2, y2) from a paste position and template size."""
 
     return (
         position[0],  # top-left x
@@ -44,16 +72,13 @@ def calculate_bounding_box(position, template):
     )
 
 
+# Function to overlay the template onto the background at the given position
 def overlay_template(background, template, position):
-    """Paste an RGBA template onto the background at the given (x, y) position, respecting transparency."""
     background.paste(template, position, template)
 
 
+# Function to calculate a random position within the background for the template
 def get_random_position(background, template):
-    """Calculate a random valid position to place the template within the background bounds.
-
-    Returns (x, y) tuple or None if the template is larger than the background.
-    """
 
     max_x = background.width - template.width
     max_y = background.height - template.height
@@ -63,63 +88,58 @@ def get_random_position(background, template):
     return (random.randint(0, max_x), random.randint(0, max_y))
 
 
+# Increases or decreases the color saturation of a given image using a factor
 def color_transform(img, color_factor):
-	"""Randomly adjust color saturation by a factor in the range [1 - factor, 1 + factor]."""
-	enhancer = ImageEnhance.Color(img)
-	img = enhancer.enhance(random.uniform((1.0 - color_factor), (1.0 + color_factor)))
-	
-	return img
+    enhancer = ImageEnhance.Color(img)
+    factor = random.uniform((1.0 - color_factor), (1.0 + color_factor))
+    img = enhancer.enhance(factor)
+    return img
 
 
+# Increases or decreases the sharpness of a given image using a factor
 def sharpness_transform(img, sharpness_factor):
-	"""Randomly adjust sharpness by a factor in the range [1 - factor, 1 + factor]."""
-	enhancer = ImageEnhance.Sharpness(img)
-	img = enhancer.enhance(random.uniform((1.0 - sharpness_factor), (1.0 + sharpness_factor)))
-	
-	return img
+    enhancer = ImageEnhance.Sharpness(img)
+    factor = random.uniform((1.0 - sharpness_factor), (1.0 + sharpness_factor))
+    img = enhancer.enhance(factor)
+    return img
 
 
+# Increases or decreases the contrast of a given image using a factor
 def contrast_transform(img, contrast_factor):
-	"""Randomly adjust contrast by a factor in the range [1 - factor, 1 + factor]."""
-
-	enhancer = ImageEnhance.Contrast(img)
-	img = enhancer.enhance(random.uniform((1.0 - contrast_factor), (1.0 + contrast_factor)))
-	
-	return img
+    enhancer = ImageEnhance.Contrast(img)
+    factor = random.uniform((1.0 - contrast_factor), (1.0 + contrast_factor))
+    img = enhancer.enhance(factor)
+    return img
 
 
+# Increases or decreases the brightness of a given image using a factor
 def gamma_transform(img, gamma_factor):
-	"""Randomly adjust brightness by a factor in the range [1 - factor, 1 + factor]."""
-
-	enhancer = ImageEnhance.Brightness(img)
-	img = enhancer.enhance(random.uniform((1.0 - gamma_factor), (1.0 + gamma_factor)))
-	
-	return img
+    enhancer = ImageEnhance.Brightness(img)
+    factor = random.uniform((1.0 - gamma_factor), (1.0 + gamma_factor))
+    img = enhancer.enhance(factor)
+    return img
 
 
+# Crop the image to the non-transparent parts.
 def crop_transparent_borders(image):
-	"""Crop an RGBA image to its non-transparent bounding box."""
+    image = image.convert("RGBA")
+    bbox = image.getbbox()
+    if bbox:
+        cropped_image = image.crop(bbox)
+        return cropped_image
+    return image
 
-	image = image.convert("RGBA")
-	bbox = image.getbbox()
-	if bbox:
-		cropped_image = image.crop(bbox)
-		return cropped_image
-	
-	return image
 
+# Function to rotate the template using an angle range
 def rotate_img(template, rotation_angle):
-    """Rotate the template by a random angle in [0, rotation_angle] and crop transparent borders."""
-
     angle = random.uniform(0, rotation_angle)
     new_template = template.rotate(angle, expand=True)
     new_template = crop_transparent_borders(new_template)
-
     return new_template
 
 
+# Function to randomly flip the image horizontally or vertically
 def flip_img(template, h_flip, v_flip):
-    """Randomly flip the image horizontally (probability h_flip) and/or vertically (probability v_flip)."""
     if random.random() < h_flip:
         template = ImageOps.mirror(template)  # Horizontal flip
     if random.random() < v_flip:
@@ -127,130 +147,118 @@ def flip_img(template, h_flip, v_flip):
     return template
 
 
+# Function to rescale a image using a scaling factor range
 def rescale_img(img, rescale_factor):
-	"""Randomly rescale the image by a factor in [1 - rescale_factor, 1 + rescale_factor]."""
-
-	rescale_factor = random.uniform((1.0 - rescale_factor), (1.0 + rescale_factor))
-
-	img_width, img_height = img.size
-
-	new_width = int(img_width * rescale_factor)
-	new_height = int(img_height * rescale_factor)
-    
-	img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-	return img
+    factor = random.uniform((1.0 - rescale_factor), (1.0 + rescale_factor))
+    img_width, img_height = img.size
+    new_width = int(img_width * factor)
+    new_height = int(img_height * factor)
+    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    return img
 
 
+# Function to rescale an image using the background scaling factor (fixed factor)
 def normalize_img(img, norm_factor):
-	"""Resize the template using a pre-computed normalization factor to match the target background resolution."""
-
-	img_width, img_height = img.size
-
-	new_width = int(img_width * norm_factor)
-	new_height = int(img_height * norm_factor)
-    
-	img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-	return img
+    img_width, img_height = img.size
+    new_width = int(img_width * norm_factor)
+    new_height = int(img_height * norm_factor)
+    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    return img
 
 
+# Calculates the scaling factor to normalize the templates for different background resolutions
 def normalization_factor(old_res, new_res):
-	"""Compute the scaling factor to normalize templates from old_res to new_res, preserving aspect ratio."""
-
-	old_width, old_height = old_res
-	new_width, new_height = new_res
-    
-	scale_width = new_width/old_width
-	scale_height = new_height/old_height
-	
-	return min(scale_width, scale_height)
+    old_width, old_height = old_res
+    new_width, new_height = new_res
+    scale_width = new_width / old_width
+    scale_height = new_height / old_height
+    return min(scale_width, scale_height)
 
 
-def blending(image):
-	"""Apply a multi-layer edge-blending filter to soften template borders.
+# Applies a 4-step filter to a given image to help it blend to a background
+def blending(image, collect_steps=False):
+    # image is a PIL RGBA image
+    transparencies = [1.0, 0.75, 0.5, 0.25]
 
-    Creates 4 transparency layers (100%, 75%, 50%, 25%) with progressively
-    eroded masks and composites them to produce a smooth transition at edges.
-    """
+    np_img = np.array(image)  # shape (H, W, 4), dtype=uint8
+    processed_images = []
+    alpha_images = []
+    erosion_images = []
 
-	transparencies = [1.0, 0.75, 0.5, 0.25]
-	images_with_transparency = []
-    
-	for transparency in transparencies:
-		data = image.getdata() # (R, G, B, A) tuple list image data  
-		new_data = []
+    for idx, alpha_factor in enumerate(transparencies):
+        # First erode the template border, then adjust transparency
+        img_cv = cv2.cvtColor(np_img, cv2.COLOR_RGBA2BGRA)
 
-		for item in data:
-			new_alpha = int(item[3] * transparency)
-			new_data.append((item[0], item[1], item[2], new_alpha))
+        iterations = 3 - idx
+        if iterations > 0:
+            eroded_img = cv2.erode(img_cv, _EROSION_KERNEL, iterations=iterations)
+        else:
+            eroded_img = img_cv
 
-		new_image = Image.new("RGBA", image.size)
-		new_image.putdata(new_data)
+        eroded_pil = Image.fromarray(cv2.cvtColor(eroded_img, cv2.COLOR_BGRA2RGBA))
+        if collect_steps:
+            erosion_images.append(eroded_pil.copy())
 
-		images_with_transparency.append(new_image)
+        alpha_adjusted = np.array(eroded_pil)
+        alpha_adjusted[..., 3] = (alpha_adjusted[..., 3].astype(np.float32) * alpha_factor).astype(np.uint8)
+        alpha_pil = Image.fromarray(alpha_adjusted, mode='RGBA')
+        processed_images.append(alpha_pil)
+        if collect_steps:
+            alpha_images.append(alpha_pil.copy())
 
-	eroded_images = []
-	kernel = np.ones((3, 3), np.uint8)
+    # Composite images with alpha blending
+    base_image = processed_images[3].copy()
+    base_image = Image.alpha_composite(base_image, processed_images[2])
+    base_image = Image.alpha_composite(base_image, processed_images[1])
+    final_image = Image.alpha_composite(base_image, processed_images[0])
 
-	for index, img in enumerate(images_with_transparency):
-		img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGBA2BGRA)
-		eroded_img = img_cv
+    if collect_steps:
+        return final_image, alpha_images, erosion_images
 
-		for _ in range(3 - index):
-			eroded_img = cv2.erode(eroded_img, kernel, iterations=1)
-
-		eroded_images.append(Image.fromarray(cv2.cvtColor(eroded_img, cv2.COLOR_BGRA2RGBA)))
-
-	base_image = eroded_images[3].copy()
-    
-	base_image = Image.alpha_composite(base_image, eroded_images[2])
-	base_image = Image.alpha_composite(base_image, eroded_images[1])
-	final_image = Image.alpha_composite(base_image, eroded_images[0])
-
-	return final_image
+    return final_image
 
 
+# Blurs a given image using gaussian distribution rule
 def gaussian_blur(template):
-	"""Apply a light Gaussian blur (sigma=0.6667) to reduce aliasing artifacts."""
-
-	g_blur = iaa.GaussianBlur(sigma=0.6667)
-	np_template = np.array(template)
-	aug_template = g_blur.augment_image(np_template)
-	aug_template = Image.fromarray(aug_template)
-
-	return aug_template
+    g_blur = iaa.GaussianBlur(sigma=0.6667)
+    np_template = np.array(template)
+    aug_template = g_blur.augment_image(np_template)
+    aug_template = Image.fromarray(aug_template)
+    return aug_template
 
 
-def filter_template(template):
-	"""Apply the full template filtering pipeline: Gaussian blur followed by edge blending."""
-	
-	template = gaussian_blur(template)
-	template = blending(template)
-	
-	return template
+# Applies Gaussian Blur, then a Blending filter
+def filter_template(template, collect_steps=False):
+    template = gaussian_blur(template)
+    if collect_steps:
+        final_template, alpha_images, erosion_images = blending(template, collect_steps=True)
+        return final_template, alpha_images, erosion_images
+
+    template = blending(template)
+    return template
 
 
+# Function to randomly choose an image from a folder (with caching)
 def get_random_image(folder):
-    """Load and return a random image from the given directory."""
+    if folder not in _image_folder_cache:
+        _image_folder_cache[folder] = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+    file_list = _image_folder_cache[folder]
+    if not file_list:
+        raise ValueError(f"No files found in folder {folder}")
+    filename = random.choice(file_list)
+    return Image.open(os.path.join(folder, filename))
 
-    return Image.open(os.path.join(folder, random.choice(os.listdir(folder))))
 
-
+# Resizes an image to a predefined resolution
 def resize_img(img, img_resolution):
-	"""Resize an image to the exact specified (width, height) resolution."""
-	
-	width, height = img_resolution
-	img = img.resize((width, height), Image.Resampling.LANCZOS)
-	
-	return img
+    width, height = img_resolution
+    img = img.resize((width, height), Image.Resampling.LANCZOS)
+    return img
 
+
+# Generates a noise background with the given resolution
 def noise_background(img_resolution):
-	"""Generate a random RGB noise image with the given (width, height) resolution."""
-   
-	width, height = img_resolution
-    
-	noise_array = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
-	img_noise = Image.fromarray(noise_array)
-    
-	return img_noise
+    width, height = img_resolution
+    noise_array = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+    img_noise = Image.fromarray(noise_array)
+    return img_noise

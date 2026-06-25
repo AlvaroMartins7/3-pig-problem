@@ -1,7 +1,7 @@
 bgns_path: "./data/backgrounds/" # path for background images
-tpls_path: "./data/templates/" # path for background images
+tpls_path: "./data/templates/val/" # path for background images
 out_path: "./output/" # path for the final images
-noise_bg: 1.0 # Sets the chance for a noise background to be used (0.0 will never use noise background, while 1.0 will always use)
+noise_bg: 0.0 # Sets the chance for a noise background to be used (0.0 will never use noise background, while 1.0 will always use)
 img_res: [640, 360] # tuple for desired final image resolution (width, height)
 orig_tpl_res: [3840, 2160] # Resolution of the original image that the templates were taken from
 rescale_factor: 0.05 # scale factor that will be used to shrink or grow the templates on the background
@@ -9,7 +9,8 @@ rotation_angle: 45 # angle that the template can be rotated on the background (l
 h_flip: 0.25 # probability that the template will be horizontally flipped (1.0 will always flip, while 0.0 will never flip)
 v_flip: 0.25 # probability that the template will be vertically flipped (1.0 will always flip, while 0.0 will never flip)
 templ_number: 10 # max number of templates that can be merged on the background
-gamma_factor: 0.33 # factor to increase or decrease brightness (0.0 won't change the brightness)
-contrast_factor: 0.33 # factor to increase or decrease contrast (0.0 won't change the contrast)
-sharpness_factor: 0.33 # factor to increase or decrease sharpness (0.0 won't change the sharpness)
-color_factor: 0.33 # factor to increase or decrease color (0.0 won't change the color)
+gamma_factor: 0.75 # factor to increase or decrease brightness (0.0 won't change the brightness)
+contrast_factor: 0.75 # factor to increase or decrease contrast (0.0 won't change the contrast)
+sharpness_factor: 0.75 # factor to increase or decrease sharpness (0.0 won't change the sharpness)
+color_factor: 0.75 # factor to increase or decrease color (0.0 won't change the color)
+annot_format: "coco" # Defines the type of image annotation that will be generated: "coco" or "yolo"
